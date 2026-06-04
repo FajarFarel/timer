@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../uttils/colors.dart';
 import 'timer.dart';
 import '../uttils/card_timer.dart';
 
 class IntervalPage extends StatefulWidget {
-  const IntervalPage({super.key});
+  final String name;
+
+  const IntervalPage({super.key, required this.name});
 
   @override
   State<IntervalPage> createState() => _IntervalPageState();
@@ -16,6 +17,15 @@ class _IntervalPageState extends State<IntervalPage> {
   int prepSeconds = 0;
   int workSeconds = 0;
   int rounds = 1;
+
+// 🔥 menambahkan sound list
+  final Map<String, String> soundMap = {
+    "Bell 1": "beep_fast.mp3",
+    "Bell 2": "kringg.mp3",
+    "Bell 3": "explosion.mp3",
+  };
+
+  String selectedSound = "beep_fast.mp3";
 
   int get totalSeconds => (rounds * workSeconds) + prepSeconds;
 
@@ -54,97 +64,207 @@ class _IntervalPageState extends State<IntervalPage> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.appbar,
-        elevation: 0,
         centerTitle: true,
         title: Text(
           "Fakultas Kedokteran UPN",
-          style: GoogleFonts.abrilFatface(
-            color: AppColors.title,
-            fontSize: 35,
-            fontWeight: FontWeight.bold,
-          ),
+          style: GoogleFonts.abrilFatface(color: AppColors.title, fontSize: 28),
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
+
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 800;
+
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: isDesktop
+                ? _buildDesktopLayout(key: const ValueKey("desktop"))
+                : _buildMobileLayout(key: const ValueKey("mobile")),
+          );
+        },
+      ),
+    );
+  }
+
+  /// ================= DESKTOP =================
+  Widget _buildDesktopLayout({required Key key}) {
+    return Stack(
+      key: key,
+      children: [
+        /// 🔥 BACKGROUND LOGO
+        Positioned.fill(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SizedBox(height: 20),
-
-              /// PREP TIME
-              GestureDetector(
-                onTap: () => openPicker(prepSeconds, (v) => prepSeconds = v),
-                child: _buildTimeCard(
-                  label: "Waktu persiapan:",
-                  value: format(prepSeconds),
-                ),
+              Opacity(
+                opacity: 0.5,
+                child: Image.asset("assets/logo_upn.png", width: 260),
               ),
-
-              const SizedBox(height: 20),
-
-              /// MAIN CARD (TANPA GestureDetector BESAR)
-              _buildMainTimerCard(),
-
-              const Spacer(),
-
-              /// START
-              InkWell(
-                borderRadius: BorderRadius.circular(30),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TimerPage(
-                        prepSeconds: prepSeconds,
-                        workSeconds: workSeconds,
-                        rounds: rounds,
-                      ),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2b2b2b),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Stack(
-                    children: [
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: Text(
-                          "Total waktu: ${formatTotalTime(totalSeconds)}",
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Text(
-                          "START",
-                          style: GoogleFonts.abrilFatface(
-                            color: Colors.white,
-                            fontSize: 40,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              Opacity(
+                opacity: 0.5,
+                child: Image.asset("assets/logofk.png", width: 260),
               ),
             ],
           ),
+        ),
+
+        /// 🔥 CONTENT
+        Column(
+          children: [
+            const SizedBox(height: 20),
+            Text(widget.name, style: GoogleFonts.abrilFatface(fontSize: 30)),
+            const SizedBox(height: 20),
+
+            /// 🔥 ATAS (CARD AREA)
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () => openPicker(
+                      prepSeconds,
+                      (v) => setState(() => prepSeconds = v),
+                    ),
+                    child: _buildTimeCard(
+                      label: "Waktu persiapan:",
+                      value: format(prepSeconds),
+                      width: 500,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(width: 400, child: _buildMainTimerCard()),
+                ],
+              ),
+            ),
+
+            /// 🔥 BAWAH (BUTTON SENDIRI)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: _buildStartButton(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// ================= MOBILE =================
+  Widget _buildMobileLayout({required Key key}) {
+    return Stack(
+      key: key,
+      children: [
+        /// BACKGROUND
+        Positioned.fill(
+          child: Center(
+            child: Opacity(
+              opacity: 0.06,
+              child: Image.asset("assets/logo_upn.png", width: 250),
+            ),
+          ),
+        ),
+
+        /// SCROLL CONTENT
+        Positioned.fill(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    widget.name,
+                    style: GoogleFonts.abrilFatface(fontSize: 24),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  GestureDetector(
+                    onTap: () => openPicker(
+                      prepSeconds,
+                      (v) => setState(() => prepSeconds = v),
+                    ),
+                    child: _buildTimeCard(
+                      label: "Waktu persiapan:",
+                      value: format(prepSeconds),
+                      width: double.infinity,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  _buildMainTimerCard(),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        /// BUTTON FIXED
+        Positioned(left: 16, right: 16, bottom: 16, child: _buildStartButton()),
+      ],
+    );
+  }
+
+  /// ================= START BUTTON =================
+  Widget _buildStartButton() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(30),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TimerPage(
+              prepSeconds: prepSeconds,
+              workSeconds: workSeconds,
+              rounds: rounds,
+              name: widget.name,
+              sound: selectedSound,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        height: 70,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2b2b2b),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Stack(
+          children: [
+            Align(
+              alignment: Alignment.topCenter,
+              child: Text(
+                "Total waktu: ${formatTotalTime(totalSeconds)}",
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Text(
+                "START",
+                style: GoogleFonts.abrilFatface(
+                  color: Colors.white,
+                  fontSize: 40,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// CARD PREP
-  Widget _buildTimeCard({required String label, required String value}) {
+  /// ================= TIME CARD =================
+  Widget _buildTimeCard({
+    required String label,
+    required String value,
+    required double width,
+  }) {
     return Container(
       height: 80,
-      width: 580,
+      width: width,
       decoration: BoxDecoration(
         color: AppColors.card_background,
         borderRadius: BorderRadius.circular(28),
@@ -167,7 +287,7 @@ class _IntervalPageState extends State<IntervalPage> {
     );
   }
 
-  /// MAIN CARD
+  /// ================= MAIN TIMER =================
   Widget _buildMainTimerCard() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 25),
@@ -177,25 +297,41 @@ class _IntervalPageState extends State<IntervalPage> {
       ),
       child: Column(
         children: [
-          /// WAKTU (INI AJA YANG BISA DI TAP)
           Padding(
-            padding: const EdgeInsets.only(left: 20.0, right: 20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: GestureDetector(
               onTap: () => openPicker(workSeconds, (v) => workSeconds = v),
               child: Container(
                 height: 80,
-                width: 580,
+                width: double.infinity,
                 decoration: BoxDecoration(
                   color: AppColors.appbar,
                   borderRadius: BorderRadius.circular(28),
                 ),
                 child: Stack(
                   children: [
-                    const Align(
+                    Align(
                       alignment: Alignment.topLeft,
                       child: Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Icon(Icons.music_note),
+                        padding: const EdgeInsets.all(8.0),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedSound,
+                            icon: const Icon(Icons.music_note),
+                            dropdownColor: AppColors.appbar,
+                            onChanged: (value) {
+                              setState(() {
+                                selectedSound = value!;
+                              });
+                            },
+                            items: soundMap.entries.map((entry) {
+                              return DropdownMenuItem<String>(
+                                value: entry.value,
+                                child: Text(entry.key),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
                     ),
                     Align(
@@ -220,99 +356,96 @@ class _IntervalPageState extends State<IntervalPage> {
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
-          /// BUTTON + PUTARAN
-          Container(
-            height: 80,
-            width: 580,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: AppColors.card_background,
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          if (rounds < 99) rounds++;
-                        });
-                      },
-                      child: _timerButton("+"),
-                    ),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          if (rounds > 1) rounds--;
-                        });
-                      },
-                      child: _timerButton("-"),
-                    ),
-                  ],
-                ),
-                Container(
-                  width: 100,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6D4336),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "Putaran:",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      Text(
-                        rounds.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildRoundsSection(),
         ],
       ),
     );
   }
 
-  /// BUTTON
-  Widget _timerButton(String text) {
-    return Container(
-      width: 70,
-      height: 70,
-      decoration: BoxDecoration(
-        color: AppColors.button_action,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(text == "+" ? 20 : 0),
-          topRight: Radius.circular(text == "+" ? 0 : 20),
-          bottomLeft: Radius.circular(text == "+" ? 20 : 0),
-          bottomRight: Radius.circular(text == "+" ? 0 : 20),
+  /// ================= ROUNDS =================
+  Widget _buildRoundsSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        height: 80,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.card_background,
+          borderRadius: BorderRadius.circular(28),
         ),
-      ),
-      child: Center(
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              text,
-              style: const TextStyle(fontSize: 40, color: Colors.white),
+            Row(
+              children: [
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (rounds < 99) rounds++;
+                    });
+                  },
+                  child: _timerButton("+"),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (rounds > 1) rounds--;
+                    });
+                  },
+                  child: _timerButton("-"),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: Container(
+                width: 90,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6D4336),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Putaran:",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    Text(
+                      rounds.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _timerButton(String text) {
+    return Container(
+      width: 70,
+      height: 70,
+      decoration: BoxDecoration(
+        color: AppColors.button_action,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 40, color: Colors.white),
+        ),
+      ),
+    );
+  }
 }
-                  

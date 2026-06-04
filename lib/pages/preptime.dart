@@ -1,32 +1,56 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'home.dart';
 
 class Preptime extends StatefulWidget {
-  const Preptime({super.key});
+  final String name;
+  final String sound;
+
+  const Preptime({super.key, required this.name, required this.sound});
 
   @override
   State<Preptime> createState() => _PreptimeState();
 }
 
-class _PreptimeState extends State<Preptime>
-    with TickerProviderStateMixin {
+class _PreptimeState extends State<Preptime> with TickerProviderStateMixin {
   int seconds = 10;
-  late Timer timer;
+  Timer? timer;
 
   late AnimationController scaleCtrl;
   late AnimationController shakeCtrl;
   late Animation<double> scaleAnim;
 
   final random = Random();
+
+  // 🔥 2 player biar gak tabrakan
   final AudioPlayer beepPlayer = AudioPlayer();
+  final AudioPlayer finalPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
+    _initAnimation();
+    _initAudio(); // 🔥 mulai langsung
+  }
 
-    // 🎞️ INIT ANIMATION
+  Future<void> _initAudio() async {
+    try {
+      await beepPlayer.setReleaseMode(ReleaseMode.stop);
+      await beepPlayer.setSource(AssetSource('sounds/beep.mp3'));
+
+      await finalPlayer.setReleaseMode(ReleaseMode.stop);
+      await finalPlayer.setSource(AssetSource('sounds/${widget.sound}'));
+    } catch (e) {
+      debugPrint("Audio error: $e");
+    }
+
+    // 🔥 timer tetap jalan walaupun audio error
+    _startCountdown();
+  }
+
+  void _initAnimation() {
     scaleCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -39,54 +63,54 @@ class _PreptimeState extends State<Preptime>
 
     scaleAnim = Tween<double>(
       begin: 0.6,
-      end: 1.3,
-    ).animate(
-      CurvedAnimation(
-        parent: scaleCtrl,
-        curve: Curves.elasticOut,
-      ),
-    );
-
-    // 🔊 PRELOAD SOUND
-    beepPlayer.setAsset('assets/sound/beep.mp3');
-
-    // ⏱️ BARU JALANIN TIMER
-    startCountdown();
+      end: 1.2,
+    ).animate(CurvedAnimation(parent: scaleCtrl, curve: Curves.elasticOut));
   }
 
-  void startCountdown() {
-    scaleCtrl.forward();
-
-    timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+  void _startCountdown() {
+    timer = Timer.periodic(const Duration(seconds: 1), (t) async {
+      // 🔥 Kalau sudah 0 → play selected sound
       if (seconds == 0) {
-        timer.cancel();
+        t.cancel();
+
+        await finalPlayer.stop();
+        await finalPlayer.resume();
+
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => IntervalPage(name: widget.name),
+              ),
+              (route) => false,
+            );
+          }
+        });
         return;
       }
 
-      if (seconds == 1) {
-        await beepPlayer.setAsset('assets/explosion.mp3');
-      } else {
-        await beepPlayer.setAsset('assets/beep.mp3');
-        beepPlayer.setSpeed(seconds <= 3 ? 1.4 : 1.0);
-      }
-
-      await beepPlayer.seek(Duration.zero);
-      await beepPlayer.play();
-
-      setState(() => seconds--);
+      // 🔥 10 - 1 pakai beep
+      await beepPlayer.stop();
+      await beepPlayer.resume();
 
       scaleCtrl
         ..reset()
         ..forward();
+
+      if (mounted) {
+        setState(() => seconds--);
+      }
     });
   }
 
   @override
   void dispose() {
-    timer.cancel();
+    timer?.cancel();
     scaleCtrl.dispose();
     shakeCtrl.dispose();
     beepPlayer.dispose();
+    finalPlayer.dispose();
     super.dispose();
   }
 
@@ -95,41 +119,51 @@ class _PreptimeState extends State<Preptime>
     final isDanger = seconds <= 3;
 
     return Scaffold(
-      body: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        color: isDanger ? Colors.red.withOpacity(0.9) : Colors.black,
-        child: Center(
-          child: AnimatedBuilder(
-            animation: shakeCtrl,
-            builder: (context, child) {
-              final dx = isDanger ? random.nextDouble() * 10 - 5 : 0.0;
-              final dy = isDanger ? random.nextDouble() * 10 - 5 : 0.0;
+      body: SafeArea(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: double.infinity,
+          height: double.infinity,
+          color: isDanger ? Colors.red.withOpacity(0.9) : Colors.black,
+          child: Center(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final size = constraints.maxWidth * 0.35;
 
-              return Transform.translate(
-                offset: Offset(dx, dy),
-                child: ScaleTransition(
-                  scale: scaleAnim,
-                  child: Text(
-                    seconds == 0
-                        ? "💥 HIDUP JOKOWI 💥"
-                        : seconds.toString(),
-                    style: TextStyle(
-                      fontSize: seconds == 0 ? 80 : 140,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 30,
-                          color: isDanger
-                              ? Colors.yellow
-                              : Colors.red,
+                return AnimatedBuilder(
+                  animation: shakeCtrl,
+                  builder: (context, child) {
+                    final dx = isDanger ? random.nextDouble() * 8 - 4 : 0.0;
+
+                    final dy = isDanger ? random.nextDouble() * 8 - 4 : 0.0;
+
+                    return Transform.translate(
+                      offset: Offset(dx, dy),
+                      child: ScaleTransition(
+                        scale: scaleAnim,
+                        child: FittedBox(
+                          child: Text(
+                            seconds == 0 ? "💥 SELESAI 💥" : seconds.toString(),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: size,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 30,
+                                  color: isDanger ? Colors.yellow : Colors.red,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),

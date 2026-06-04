@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:timer/pages/home.dart';
+import 'package:timer/pages/splashscreen.dart';
 import 'package:timer/pages/timer.dart';
 import 'package:timer/pages/preptime.dart';
 
@@ -14,7 +15,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const Preptime(
+      home: const Splashscreen(
         // prepSeconds: 10,
         // workSeconds: 30,
         // rounds: 1,

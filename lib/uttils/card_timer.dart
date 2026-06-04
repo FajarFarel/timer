@@ -88,8 +88,7 @@ class _TimerPickerCardState extends State<TimerPickerCard> {
   }) {
     return Expanded(
       child: CupertinoPicker(
-        scrollController:
-            FixedExtentScrollController(initialItem: initial),
+        scrollController: FixedExtentScrollController(initialItem: initial),
         itemExtent: 40,
         useMagnifier: true,
         onSelectedItemChanged: onChanged,
